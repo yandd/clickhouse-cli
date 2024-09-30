@@ -51,8 +51,7 @@ def show_version():
 class CLI:
     def __init__(
         self,
-        host,
-        port,
+        url,
         user,
         password,
         database,
@@ -67,8 +66,7 @@ class CLI:
     ):
         self.config = None
 
-        self.host = host
-        self.port = port
+        self.url = url
         self.user = user
         self.password = password
         self.database = database
@@ -91,12 +89,8 @@ class CLI:
 
     def connect(self):
         self.scheme = "http"
-        if "://" in self.host:
-            u = urlparse(self.host, allow_fragments=False)
-            self.host = u.hostname
-            self.port = u.port or self.port
-            self.scheme = u.scheme
-        self.url = "{scheme}://{host}:{port}/".format(scheme=self.scheme, host=self.host, port=self.port)
+        if "://" not in self.url:
+            self.url = "{scheme}://{url}".format(scheme=self.scheme, url=self.url)
         self.client = Client(
             self.url,
             self.user,
@@ -110,7 +104,7 @@ class CLI:
             not self.insecure,
         )
 
-        self.echo.print("Connecting to {host}:{port}".format(host=self.host, port=self.port))
+        self.echo.print("Connecting to {url}".format(url=self.url))
 
         try:
             for key, value in self.settings.items():
@@ -188,11 +182,8 @@ class CLI:
         self.conn_timeout_retry = self.config.getint("http", "conn_timeout_retry")
         self.conn_timeout_retry_delay = self.config.getfloat("http", "conn_timeout_retry_delay")
 
-        self.host = (
-            self.host or os.environ.get("CLICKHOUSE_HOST", "") or self.config.get("defaults", "host") or "127.0.0.1"
-        )
-        self.port = (
-            self.port or int(os.environ.get("CLICKHOUSE_PORT", "0")) or self.config.get("defaults", "port") or 8123
+        self.url = (
+            self.url or os.environ.get("CLICKHOUSE_URL", "") or self.config.get("defaults", "url") or "127.0.0.1:8123"
         )
         self.user = (
             self.user or os.environ.get("CLICKHOUSE_USER", "") or self.config.get("defaults", "user") or "default"
@@ -553,11 +544,10 @@ class CLI:
 
 @click.command(context_settings={"ignore_unknown_options": True})
 @click.option(
-    "--host",
-    "-h",
-    help="Server host, set to https://<host>:<port> if you want to use HTTPS",
+    "--url",
+    "-U",
+    help="Server url, set to https://<url> if you want to use HTTPS",
 )
-@click.option("--port", "-p", type=click.INT, help="Server HTTP/HTTPS port")
 @click.option("--user", "-u", help="User")
 @click.option("--password", "-P", is_flag=True, help="Ask for a password in STDIN")
 @click.option("--arg-password", "-B", help="Argument as a password")
@@ -579,8 +569,7 @@ class CLI:
 @click.option("--version", is_flag=True, help="Show the version and exit.")
 @click.argument("files", nargs=-1, type=click.File("rb"))
 def run_cli(
-    host,
-    port,
+    url,
     user,
     password,
     arg_password,
@@ -621,8 +610,7 @@ def run_cli(
 
     # TODO: Rename the CLI's instance into something more feasible
     cli = CLI(
-        host,
-        port,
+        url,
         user,
         password,
         database,
